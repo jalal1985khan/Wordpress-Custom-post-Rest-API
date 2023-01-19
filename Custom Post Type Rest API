@@ -1,13 +1,24 @@
-add_action( 'rest_api_init', 'custom_api_get_all_posts' );   
-
-function custom_api_get_all_posts() {
+add_action( 'rest_api_init', function () {
     register_rest_route( 'wp/v2', '/all-posts', array(
         'methods' => 'GET',
-        'callback' => 'custom_api_get_all_posts_callback'
-    ));
-}
+        'callback' => 'custom_api_get_all_posts_callback',
+    ) );
+} );
+
+// add_action( 'rest_api_init', 'custom_api_get_all_posts' );   
+
+// function custom_api_get_all_posts($params) {
+// 		$tax = $params->get_param('tax');
+//     register_rest_route( 'wp/v2', '/all-posts/(?P<id>\d+), 
+// 		array(
+//         'methods' => 'GET',
+//         'callback' => 'custom_api_get_all_posts_callback'
+//     ));
+// }
 
 function custom_api_get_all_posts_callback( $request ) {
+	
+	$tag_id = $request->get_param( 'tag' );
     // Initialize the array that will receive the posts' data. 
     $posts_data = array();
     // Receive and set the page parameter from the $request for pagination purposes
@@ -17,8 +28,20 @@ function custom_api_get_all_posts_callback( $request ) {
     $posts = get_posts( array(
             'paged' => $paged,
             'post__not_in' => get_option( 'sticky_posts' ),
-            'posts_per_page' => 6,            
-            'post_type' => array( 'post', 'articles', 'case-studies', 'datasheets', 'ebooks', 'podcasts', 'whitepapers', 'reports', 'webinars', 'press_release', 'blogs', 'events','news' ) // This is the line that allows to fetch multiple post types. 
+            'posts_per_page' => 1,
+		
+		'tax_query' => array(
+             array(
+				 'taxonomy' => 'homepage_articles',
+			      'field' => 'id',
+			      'terms' => $tag_id // Where term_id of Term 1 is "1".
+             )
+         ),
+            'post_type' => array( 'post', 'articles', 'case-studies', 'datasheets', 'ebooks', 'podcasts', 'whitepapers', 'reports', 'webinars', 'press_release', 'blogs', 'events','news','pages' ) 
+		
+		
+		
+		// This is the line that allows to fetch multiple post types. 
         )
     ); 
 	
@@ -28,6 +51,8 @@ function custom_api_get_all_posts_callback( $request ) {
         $post_thumbnail = ( has_post_thumbnail( $id ) ) ? get_the_post_thumbnail_url( $id ) : null;
 		$homepage_pr_images = get_field( 'homepage_pr_images' );
 		$field = get_field('homepage_pr_images', $post->ID);
+		$cat = get_the_category($id);
+		$loc = get_the_terms($id, 'taxonomy');
 	
 		
         $posts_data[] = (object) array( 
@@ -35,10 +60,14 @@ function custom_api_get_all_posts_callback( $request ) {
             'slug' => $post->post_name, 
             'type' => $post->post_type,
             'title' => $post->post_title,
+			'excerpt' => $post->post_excerpt,
+			'category'=> $cat[0]->term_id, 
             'featured_img_src' => $post_thumbnail,
-			'home_pr' => $field
+			'home_pr' => $field,
+			'tax_query' => $tag_id
 
         );
     }                  
     return $posts_data;  
-	
+		
+}
